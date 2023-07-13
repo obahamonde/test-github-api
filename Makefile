@@ -15,6 +15,9 @@ run: build
 dev:
 	gunicorn main:app --bind 0.0.0.0:8080 --worker-class aiohttp.GunicornWebWorker --workers 1 --threads 1 --timeout 0 --reload
 
+serve:
+	gunicorn main:app --bind 0.0.0.0:8080 --worker-class aiohttp.GunicornWebWorker
+
 # Define phony targets explicitly
 .PHONY: containers prune build run dev do
 

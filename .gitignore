@@ -1,0 +1,15 @@
+.DS_Store
+.vite-ssg-dist
+.vite-ssg-temp
+*.local
+dist
+dist-ssr
+node_modules
+.idea/
+*.log
+cypress/downloads
+
+# Local Netlify folder
+.netlify
+.env
+aiofauna.rsa.pem
