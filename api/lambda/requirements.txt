@@ -1,0 +1,5 @@
+fastapi
+mangum
+langchain
+pinecone-client
+openai
