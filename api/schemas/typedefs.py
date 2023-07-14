@@ -12,6 +12,7 @@ from os import environ
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 from ..utils import run_in_threadpool, is_async_callable, ParamSpec
+from dataclasses import dataclass, is_dataclass
 
 load_dotenv()
 
@@ -19,6 +20,19 @@ ai = ChatOpenAI(temperature=0.2, model="gpt-3.5-turbo-16k-0613", max_tokens=1024
 
 T = TypeVar("T", bound="Chainable")
 P = ParamSpec("P")
+
+Vector = List[float]
+MetaData = Dict[str, str]
+
+class DataclassMeta(type):
+    def __new__(cls, name, bases, attrs):
+        klass = super().__new__(cls, name, bases, attrs)
+        if is_dataclass(klass):
+            return klass
+        return dataclass(klass) # type: ignore
+        
+class Dataclass(metaclass=DataclassMeta):
+    pass
 
 class Chainable(FaunaModel):
     """Schema that can be chained with other schemas"""

@@ -2,7 +2,7 @@ import aiohttp_cors
 from .schemas import *
 from .services import *
 from .tools import *
-
+from .agent import *
 
 def bootstrap():
     """Bootstraps the API server."""
@@ -11,6 +11,10 @@ def bootstrap():
     auth0 = AuthClient()
     cloudflare = CloudFlare()
     aws = AmazonWebServices()
+
+    @app.get("/api")
+    async def indexo(q:str,namespace:str):
+        return await chat_handler(q,namespace)
 
     @app.post("/api/auth")
     async def user_info(request: Request):
@@ -66,6 +70,7 @@ def bootstrap():
             namespace = req.query.get("user")
             if namespace:
                 user = await User.get(namespace)
+                assert isinstance(user, User)
                 app.logger.info(user.json())
                 assert isinstance(user, User)
                 await websocket.send_str(
@@ -77,15 +82,17 @@ def bootstrap():
                     app.logger.info(question)
                     answer = await main(DocumentModel(text=question, namespace=namespace))
                     app.logger.info(answer)
+                    assert isinstance(answer, str)
                     await websocket.send_str(answer)
             else:
                 namespace = websocket.cookies.get("namespace")
                 if not namespace:
                     lead = await Lead.from_request(req).run_until_complete(websocket)
-                elif isinstance(namespace, str):
-                    lead = await Lead.get(namespace)
+                else:
+                    lead = await Lead.get(namespace.__str__())
                 assert isinstance(lead, Lead)
                 lead = await lead.save()
+                assert isinstance(lead, Lead)
                 app.logger.info(lead.json())
                 assert isinstance(lead.ref, str)
                 namespace = lead.ref
@@ -96,6 +103,7 @@ def bootstrap():
                     app.logger.info(question)
                     answer = await main(DocumentModel(text=question, namespace=namespace))
                     app.logger.info(answer)
+                    assert isinstance(answer, str)
                     await websocket.send_str(answer)
         except AssertionError:
             await websocket.send_json({"status": "error", "message": "Invalid lead"})
@@ -223,7 +231,7 @@ def bootstrap():
         except Exception as e:
             raise e
 
-    #@app.get("/api/provision")
+    @app.get("/api/provision")
     async def provision(name: str, port: int):
         return await cloudflare.provision(name, port)
     
@@ -253,10 +261,12 @@ def bootstrap():
             fql = FaunaClient(secret=env.FAUNA_SECRET)
             # Create a new database
             database = await fql.query(q.create_database({"name": ref}))
+            assert isinstance(database, dict)
             global_id = database["global_id"]
             db_ref = database["ref"]["@ref"]["id"]
             # Create a new key
             key = await fql.query(q.create_key({"database": q.database(db_ref), "role": "admin"}))
+            assert isinstance(key, dict)
             key_ref = key["ref"]["@ref"]["id"]
             secret = key["secret"]
             hashed_secret = key["hashed_secret"]
@@ -271,6 +281,7 @@ def bootstrap():
                 hashed_secret=hashed_secret,
                 role=role
             ).save()
+            assert isinstance(response, DatabaseKey)
             app.logger.info(response.json())
             return response
         except Exception as e:
@@ -299,7 +310,7 @@ def bootstrap():
             await tool.run(namespace)
             return {"status": "success"}
         except HTTPException as e:
-            return {"status": "error", "message": dumps(e.detail)}
+            return {"status": "error", "message": dumps(e)}
         
     
     @app.on_event("startup")
