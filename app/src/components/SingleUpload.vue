@@ -62,7 +62,7 @@ const upload = async (file: {
     {
       method: "POST",
       body: formData,
-    }
+    },
   );
   const data = await res.json();
   state.user!.picture = data.url;

@@ -1,6 +1,6 @@
 from string import Template
 
-from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
+from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 
 
 class WidgetModel(BaseModel):

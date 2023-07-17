@@ -11,7 +11,7 @@
       <Icon icon="mdi-rocket" title="Deployments" class="footer-link" />
     </RouterLink>
 
-        <RouterLink to="/app/monitoring" class="p-2">
+    <RouterLink to="/app/monitoring" class="p-2">
       <Icon icon="mdi-chart-line" title="Metrics" class="footer-link" />
     </RouterLink>
   </div>

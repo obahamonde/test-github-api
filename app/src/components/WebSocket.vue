@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Message } from "~/types";
+
 const props = defineProps({
   url: {
     type: String,
@@ -17,10 +19,13 @@ onUnmounted(() => {
   close();
 });
 
-const messages = ref<string[]>([]);
+const messages = ref<Message[]>([]);
 
 watch(data, (newData) => {
-  messages.value.push(newData);
+  messages.value.push({
+    message: newData,
+    author: "bot",
+  });
 });
 
 const sendJson = (json: any) => {
@@ -29,7 +34,10 @@ const sendJson = (json: any) => {
 
 const sendMessage = (message: string) => {
   send(message);
-  messages.value.push(message);
+  messages.value.push({
+    message,
+    author: "user",
+  }); 
 };
 
 defineExpose({

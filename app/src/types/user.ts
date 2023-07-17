@@ -24,3 +24,8 @@ export interface UserSignUp {
   password: string;
   picture: string;
 }
+
+export interface Message {
+  message: string;
+  author: 'user' | 'bot';
+}

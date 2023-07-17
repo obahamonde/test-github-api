@@ -1,5 +1,5 @@
 <template>
-                 <ChatbotIngest />
+  <ChatbotIngest />
 </template>
 <route lang="yaml">
 meta:

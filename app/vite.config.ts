@@ -30,9 +30,9 @@ export default defineConfig({
     },
   },
 
-  build:{
+  build: {
     outDir: "../static",
-    emptyOutDir: true
+    emptyOutDir: true,
   },
 
   plugins: [

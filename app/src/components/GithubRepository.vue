@@ -67,7 +67,9 @@ watchEffect(() => {
 });
 </script>
 <template>
-  <div class="relative flex flex-col shadow-lg m-4 bg-white dark:bg-gray-500 rounded-xl max-w-md mx-4">
+  <div
+    class="relative flex flex-col shadow-lg m-4 bg-white dark:bg-gray-500 rounded-xl max-w-md mx-4"
+  >
     <div class="absolute top-2 right-2 p-2">
       <Icon :icon="getLanguageIcon(repo.language)" class="x2" />
     </div>
@@ -101,9 +103,16 @@ watchEffect(() => {
         }}</span>
       </div>
       <div class="row center gap-4">
-        <a :href="repo.html_url" class="text-blue-500 dark:text-lime-300 hover:underline">View on GitHub</a>
-        <button @click="handleUpload(repo)" :disabled="uploading"
-          class="px-4 py-2 text-white rounded-lg shadow-md bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 disabled:opacity-50">
+        <a
+          :href="repo.html_url"
+          class="text-blue-500 dark:text-lime-300 hover:underline"
+          >View on GitHub</a
+        >
+        <button
+          @click="handleUpload(repo)"
+          :disabled="uploading"
+          class="px-4 py-2 text-white rounded-lg shadow-md bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 disabled:opacity-50"
+        >
           {{ uploading ? "Uploading..." : "Upload" }}
         </button>
         <div class="text-gray-500 dark:text-white text-xs">

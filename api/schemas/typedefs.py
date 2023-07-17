@@ -1,40 +1,59 @@
 import asyncio
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
+from functools import *
+from os import environ
+from typing import *
+from typing import Dict, List
+
 import pinecone as pc
 from aiofauna import *
-from typing import *
-from langchain.chains import LLMChain, create_tagging_chain_pydantic
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema import *
-from os import environ
 from dotenv import load_dotenv
-from concurrent.futures import ThreadPoolExecutor
-from ..utils import run_in_threadpool, is_async_callable, ParamSpec
-from dataclasses import dataclass, is_dataclass
+from langchain.agents import (AgentExecutor, AgentType, Tool, initialize_agent,
+                              tool)
+from langchain.chains import (LLMChain, SQLDatabaseChain,
+                              create_tagging_chain_pydantic)
+from langchain.chat_models import ChatOpenAI
+from langchain.document_loaders import CSVLoader, JSONLoader, PDFMinerLoader
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.prompts import *
+from langchain.prompts import (ChatMessagePromptTemplate, ChatPromptTemplate,
+                               HumanMessagePromptTemplate,
+                               SystemMessagePromptTemplate)
+from langchain.schema import *
+from langchain.tools import *
+from langchain.vectorstores import Pinecone
+from openai import ChatCompletion
 
 load_dotenv()
 
-ai = ChatOpenAI(temperature=0.2, model="gpt-3.5-turbo-16k-0613", max_tokens=1024)  # type: ignore
+ai = ChatOpenAI(temperature=0.0, model="gpt-3.5-turbo-16k-0613", max_tokens=512)  # type: ignore
 
 T = TypeVar("T", bound="Chainable")
-P = ParamSpec("P")
+
+F = TypeVar("F", bound="FunctionModel")
+
+# python to json schema types
+
+M = {
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    list: "array",
+    dict: "object",
+}
+
+# type aliases
 
 Vector = List[float]
 MetaData = Dict[str, str]
+Template = Union[ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate, ChatMessagePromptTemplate]
+Message = Union[ChatMessage, HumanMessage, SystemMessage, ChatMessage]
+Loeader = Union[PDFMinerLoader, CSVLoader, JSONLoader]
 
-class DataclassMeta(type):
-    def __new__(cls, name, bases, attrs):
-        klass = super().__new__(cls, name, bases, attrs)
-        if is_dataclass(klass):
-            return klass
-        return dataclass(klass) # type: ignore
-        
-class Dataclass(metaclass=DataclassMeta):
-    pass
 
-class Chainable(FaunaModel):
+class Chainable(BaseModel):
     """Schema that can be chained with other schemas"""
 
     _ask_for: List[str] = []
@@ -66,7 +85,6 @@ class Chainable(FaunaModel):
             System Message:
             I must ask the user for the following information:
             {ask_for}
-             Also my customer speaks Spanish, so I will ask and answer in Spanish primarily.
             AI Message:  
             """
         )
@@ -103,48 +121,89 @@ class Chainable(FaunaModel):
         )
         return instance
 
-class BackgroundTask:
-    def __init__(
-        self, func: Callable[P, Any], *args: P.args, **kwargs: P.kwargs
-    ) -> None:
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-        self.is_async = is_async_callable(func)
-
-    async def __call__(self) -> None:
-        if self.is_async:
-            await self.func(*self.args, **self.kwargs)
-        else:
-            await run_in_threadpool(self.func, *self.args, **self.kwargs)
-
-
-class BackgroundTasks(BackgroundTask):
-    def __init__(self, tasks: Optional[Sequence[BackgroundTask]] = None):
-        self.tasks = list(tasks) if tasks else []
-
-    def add_task(
-        self, func: Callable[P, Any], *args: P.args, **kwargs: P.kwargs
-    ) -> None:
-        task = BackgroundTask(func, *args, **kwargs)
-        self.tasks.append(task)
-
-    async def __call__(self) -> None:
-        for task in self.tasks:
-            await task()
+class FunctionModel(BaseModel):
+    @classmethod
+    def openai_schema(cls):
+        schema = cls.schema()
+        return {
+            "name": cls.__name__.lower()+"s",
+            "type": "object",
+            "description": cls.__doc__,
+            "properties": {k: {"type": M[type(v)]} for k, v in schema["properties"].items()},
+        }
         
-        
- 
-class ChatBotModel(BaseModel):
-    """A chatbot model"""
-    chatbot_name:str=Field(default="Bot")
-    role:str=Field(default="assistant")
-    action:str=Field(default="answer any question")
-    topic:str=Field(default="what user is asking")
-    goal:str=Field(default="help the user to have an amazing experience")
-    personality:str=Field(default="helpful, truthful, creative")
-    attitude:str=Field(default="polite")
     
-class DocumentModel(BaseModel):
-    namespace:str=Field(default="default")
-    text:str=Field(...)
+class ChatBotModel(FunctionModel):
+    """Creates a new Configuration for a Chatbot"""
+    chatbot_name: str = Field(default="Bot")
+    role: str = Field(default="assistant")
+    action: str = Field(default="answer any question")
+    topic: str = Field(default="what user is asking")
+    goal: str = Field(default="help the user to have an amazing experience")
+    personality: str = Field(default="helpful, truthful, creative")
+    attitude: str = Field(default="polite") 
+    
+
+class DocumentModel(FunctionModel):
+    """Inserts Documents into Knowledge Base"""
+    namespace: str = Field(default="default")
+    text: str = Field(...)
+
+
+
+def function_calling(text:str):
+    ai = ChatCompletion  # type: ignore
+    response = ai.create(
+        model="gpt-3.5-turbo-16k-0613",
+        messages=[
+            {
+                "role": "system",
+                "message": "You are a function orchestrator, you will keep prompting the user until one of the functions signatures is fulfilled and call it"""
+            },
+            {
+                "role":"user",
+                "message": text
+            },
+            ChatBotModel.openai_schema,
+            DocumentModel.openai_schema
+        ]
+    )
+    return response
+
+
+class AgentCity:
+    """Agent factory class that creates agents with the given tools and agent type."""
+    tools:Dict[str,Tool] = {}
+    agents:Dict[str,AgentExecutor] = {}
+    
+    def __init__(self, tools:Dict[str,Tool]={}, agents:Dict[str,AgentExecutor]={}):
+        self.tools = tools 
+        self.agents = agents 
+    
+    def agent_tool(self, name:str, description:str):
+        """Decorators that register a function as an agent tool.
+        You can also register it on the tools array for the initialize agents factory.
+        """
+        def decorator(func):
+            tool_ = Tool(name=name, description=description, func=func)
+            self.tools[name] = tool_
+            return tool_
+        return decorator
+
+    def create_agent(self,name:str,tools:List[Tool], agent:AgentType=AgentType.OPENAI_FUNCTIONS):
+        """Creates an agent executor with the given tools and agent type."""
+        agent_executor = initialize_agent(tools=tools,llm=ChatOpenAI(client=None,model="gpt-3.5-turbo-16k-0613",max_retries=6,temperature=0), agent=agent,verbose=True)
+        if name in self.agents:
+            raise Exception("Agent already exists")
+        self.agents[name] = agent_executor
+        return agent
+    
+    async def run(self, text:str, name:str):
+        """Runs the agent with the given text and agent name."""
+        if name not in self.agents:
+            raise Exception("Agent not found")
+        agent_executor = self.agents[name]
+        try:    
+            return await agent_executor.arun(input=text)
+        except NotImplementedError:
+            return agent_executor.run(text=text)

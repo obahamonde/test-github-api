@@ -5,6 +5,7 @@ from boto3 import Session
 from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
 
+
 class Polly(BaseModel):
     Engine: Literal["standard", "neural"] = Field(
         default="standard",
@@ -48,12 +49,10 @@ class Polly(BaseModel):
     def client(self):
         return Session().client("polly", region_name="us-east-1")
 
-    
     @property
     def executor(self):
         return ThreadPoolExecutor()
-    
-    
+
     def synthesize(self):
         return self.client.synthesize_speech(**self.dict(exclude_none=True))
 

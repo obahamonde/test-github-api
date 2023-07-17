@@ -6,9 +6,8 @@ PINECONE_API_KEY: str = environ["PINECONE_API_KEY"]
 PINECONE_INDEX: str = environ["PINECONE_INDEX"]
 PINECONE_ENVIRONMENT: str = environ["PINECONE_ENVIRONMENT"]
 
-pc.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT) 
-chat = ChatOpenAI(model="gpt-3.5-turbo-16k-0613", max_tokens=1024, temperature=0.7) # type: ignore
-
+pc.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
+chat = ChatOpenAI(model="gpt-3.5-turbo-16k-0613", max_tokens=1024, temperature=0.7)  # type: ignore
 
 
 class ChatBot(BaseModel):
@@ -21,20 +20,22 @@ class ChatBot(BaseModel):
         temperature (float): The temperature to use.
         messages (List[Union[SystemMessage,HumanMessage, AIMessage]]): The messages to use.
     """
-    model:str = Field("gpt-3.5-turbo-16k-0613", title="The GPT-3 model to use")
+
+    model: str = Field("gpt-3.5-turbo-16k-0613", title="The GPT-3 model to use")
     max_tokens: int = Field(1024, title="The maximum number of tokens to use")
     temperature: float = Field(0.2, title="The temperature to use")
-    messages: List[Union[SystemMessage,HumanMessage, AIMessage]] = Field([], title="The messages to use")
-    
+    messages: List[Union[SystemMessage, HumanMessage, AIMessage]] = Field(
+        [], title="The messages to use"
+    )
+
     @property
     def client(self):
         """
         OpenAIAPI - A chatbot using OpenAI's service.
         """
-        return ChatOpenAI(model=self.model, max_tokens=self.max_tokens, temperature=self.temperature) # type: ignore
-    
-    
-    async def generate(self, query: str, template:ChatPromptTemplate, **context):
+        return ChatOpenAI(model=self.model, max_tokens=self.max_tokens, temperature=self.temperature)  # type: ignore
+
+    async def generate(self, query: str, template: ChatPromptTemplate, **context):
         """
         Generate a response to a user query.
 
@@ -46,8 +47,17 @@ class ChatBot(BaseModel):
         Returns:
             The generated response.
         """
-        return await self.client.agenerate(messages=[[SystemMessage(content=template.format_prompt(**context).to_string()), HumanMessage(content=query)]])
-    
+        return await self.client.agenerate(
+            messages=[
+                [
+                    SystemMessage(
+                        content=template.format_prompt(**context).to_string()
+                    ),
+                    HumanMessage(content=query),
+                ]
+            ]
+        )
+
     async def predict(self, query: str):
         """
         Predict an outcome based on a user query.
@@ -59,9 +69,8 @@ class ChatBot(BaseModel):
             The predicted outcome.
         """
         return await self.client.apredict(text=query)
-    
 
-    
+
 class VectorStore(BaseModel):
     """
     A class that represents a vector store using Pinecone's service.
@@ -71,10 +80,11 @@ class VectorStore(BaseModel):
         index (str): The index to use.
         texts (List[str]): The texts to use.
     """
-    namespace:str=Field(..., title="The namespace to use")
-    index:str=Field(PINECONE_INDEX, title="The index to use")
-    texts:List[str]=Field([], title="The texts to use")
-    
+
+    namespace: str = Field(..., title="The namespace to use")
+    index: str = Field(PINECONE_INDEX, title="The index to use")
+    texts: List[str] = Field([], title="The texts to use")
+
     @property
     def executor(self):
         """
@@ -87,14 +97,19 @@ class VectorStore(BaseModel):
         """
         Pinecone - A vector store using Pinecone's service.
         """
-        return Pinecone.from_texts(texts=self.texts, embedding=self.embeddings,index_name=self.index, namespace=self.namespace)
-    
+        return Pinecone.from_texts(
+            texts=self.texts,
+            embedding=self.embeddings,
+            index_name=self.index,
+            namespace=self.namespace,
+        )
+
     @property
     def embeddings(self):
         """
         OpenAIEmbeddings - A text embedding model using OpenAI's service.
         """
-        return OpenAIEmbeddings() # type: ignore
+        return OpenAIEmbeddings()  # type: ignore
 
     async def search(self, query: str, k: int = 8):
         """
@@ -108,7 +123,7 @@ class VectorStore(BaseModel):
             The search results.
         """
         return await self.client.asimilarity_search(query=query, k=k)
-    
+
     @asyncify
     def insert(self, texts: List[str]):
         """
@@ -118,8 +133,8 @@ class VectorStore(BaseModel):
             texts (List[str]): The text strings to insert.
         """
         return self.client.add_texts(texts=texts)
-    
-    
+
+
 class ChatGPT(BaseModel):
     """
     A class that represents the main chatbot application.
@@ -127,8 +142,9 @@ class ChatGPT(BaseModel):
     Attributes:
         namespace (str): The namespace to use.
     """
-    namespace:str=Field(..., title="The namespace to use")
-    
+
+    namespace: str = Field(..., title="The namespace to use")
+
     @property
     def chatbot(self):
         """
@@ -142,8 +158,8 @@ class ChatGPT(BaseModel):
         VectorStore(Pinecone) - A vector store using Pinecone's service.
         """
         return VectorStore(namespace=self.namespace)
-    
-    async def question(self, query:str, bot:ChatBotModel)->str:
+
+    async def question(self, query: str, bot: ChatBotModel) -> str:
         """
         Ask a question.
 
@@ -155,9 +171,14 @@ class ChatGPT(BaseModel):
             The bot's response.
         """
         results = await self.vectorstore.search(query=query)
-        kwargs = {**bot.dict(), "previous_answers":"\n".join([result.json() for result in results])}
-        response = await self.chatbot.generate(query=query, template=ChatPromptTemplate.from_template(
-            """
+        kwargs = {
+            **bot.dict(),
+            "previous_answers": "\n".join([result.json() for result in results]),
+        }
+        response = await self.chatbot.generate(
+            query=query,
+            template=ChatPromptTemplate.from_template(
+                """
             I am {chatbot_name} a {role} that can {action} about {topic}.
             My goal is to {goal}.
             The previous answers related to the user's question were:
@@ -173,13 +194,14 @@ class ChatGPT(BaseModel):
             
             AI Message:
             """
-        ), **kwargs
+            ),
+            **kwargs
         )
         text = response.generations[0][0].text
-        await self.vectorstore.insert(texts=[text, query])    
-        return text                                      
-    
-    async def predict(self, query:str)->str:
+        await self.vectorstore.insert(texts=[text, query])
+        return text
+
+    async def predict(self, query: str) -> str:
         """
         Predict an outcome based on a user query.
 
@@ -190,8 +212,8 @@ class ChatGPT(BaseModel):
             The predicted outcome.
         """
         return await self.chatbot.predict(query=query)
-    
-    async def insert(self, text:str):
+
+    async def insert(self, text: str):
         """
         Insert a text string into the vector store.
 
@@ -199,8 +221,8 @@ class ChatGPT(BaseModel):
             text (str): The text string to insert.
         """
         return await self.vectorstore.insert(texts=[text])
-    
-    async def insert_many(self, texts:List[str]):
+
+    async def insert_many(self, texts: List[str]):
         """
         Insert multiple text strings into the vector store.
 
@@ -208,8 +230,8 @@ class ChatGPT(BaseModel):
             texts (List[str]): The text strings to insert.
         """
         return await self.vectorstore.insert(texts=texts)
-    
-    async def search(self, query:str, k:int=8):
+
+    async def search(self, query: str, k: int = 8):
         """
         Search for similar or related content.
 

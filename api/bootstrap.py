@@ -1,20 +1,50 @@
 import aiohttp_cors
+
+from .agent import *
+from .functions import *
 from .schemas import *
 from .services import *
 from .tools import *
-from .agent import *
+
+
+def setup(app_: AioFauna):
+    @app_.on_event("startup")
+    async def startup(_):
+        await FaunaModel.create_all()
+
+    @app_.get("/")
+    async def index():
+        return Response(text=open("static/index.html").read(), content_type="text/html")
+
+    app_.static()
+
+    cors = aiohttp_cors.setup(
+        app_,
+        defaults={
+            "*": aiohttp_cors.ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers="*",
+                allow_methods="*",
+            )
+        },
+    )
+    for route in list(app_.router.routes()):
+        cors.add(route)
+    return app_
+
 
 def bootstrap():
     """Bootstraps the API server."""
-    
+
     app = AioFauna()
     auth0 = AuthClient()
     cloudflare = CloudFlare()
     aws = AmazonWebServices()
 
     @app.get("/api")
-    async def indexo(q:str,namespace:str):
-        return await chat_handler(q,namespace)
+    async def indexo(q: str, namespace: str):
+        return await useChat(q, namespace)
 
     @app.post("/api/auth")
     async def user_info(request: Request):
@@ -36,34 +66,22 @@ def bootstrap():
             app.logger.info(exc)
             return HTTPException(text=dumps({"status": "error", "message": str(exc)}))
 
+    @app.put("/api/chatbot/organization")
+    async def user_chat(text: str):
+        return await useChat(text, "https://letraserreape.com")
+   
     @app.post("/api/chatbot/chat")
-    async def main(doc:DocumentModel,audio:bool=False):
+    async def main(doc: DocumentModel, audio: bool = False):
         gpt = ChatGPT(namespace=doc.namespace)
-        response = await gpt.question(doc.text,ChatBotModel())
-        app.logger.info(response)
+        response = await gpt.question(doc.text, ChatBotModel())
         if audio is False:
             return response
         else:
             polly = Polly.from_text(response)
-            return Response(body=await polly.get_audio(), content_type="application/octet-stream")
-
-    @app.websocket("/api/chatbot/ingest")
-    async def ingest_organization_website(
-        namespace: str, ref: str, websocket: WebSocketResponse
-    ):
-        """
-        Ingests a website and creates a new organization.
-        """
-        user = await User.get(ref)
-        assert isinstance(user, User)
-        tool = SiteMapTool(logger=app.logger, websocket=websocket, namespace=namespace)
-        await tool.run(namespace)
-        await tool.cleanup()
-    @app.post("/api/audio")
-    async def text_to_speech(text: str):
-        polly = Polly.from_text(text)
-        return Response(body=polly.get_audio(), content_type="application/octet-stream")
-    
+            return Response(
+                body=await polly.get_audio(), content_type="application/octet-stream"
+            )
+            
     @app.websocket("/api/chatbot/infer")
     async def lead_generator_bot(websocket: WebSocketResponse, req: Request):
         try:
@@ -77,10 +95,11 @@ def bootstrap():
                     "Welcome back, " + user.name + "!, How can I help you?"
                 )
                 while True:
-                
                     question = await websocket.receive_str()
                     app.logger.info(question)
-                    answer = await main(DocumentModel(text=question, namespace=namespace))
+                    answer = await main(
+                        DocumentModel(text=question, namespace=namespace)
+                    )
                     app.logger.info(answer)
                     assert isinstance(answer, str)
                     await websocket.send_str(answer)
@@ -101,7 +120,9 @@ def bootstrap():
                 while True:
                     question = await websocket.receive_str()
                     app.logger.info(question)
-                    answer = await main(DocumentModel(text=question, namespace=namespace))
+                    answer = await main(
+                        DocumentModel(text=question, namespace=namespace)
+                    )
                     app.logger.info(answer)
                     assert isinstance(answer, str)
                     await websocket.send_str(answer)
@@ -112,10 +133,6 @@ def bootstrap():
             app.logger.info(exc)
             await websocket.send_json({"status": "error", "message": str(exc)})
             await websocket.close()
-
-    @app.get("/api/user")
-    async def users():
-        return await User.all()
 
     @app.post("/api/github")
     async def callback(code: CodeRequest):
@@ -160,16 +177,13 @@ def bootstrap():
             if isinstance(user.email, str):
                 return await aws.suscribe(user.email)
             else:
-                raise Exception("User email not found")
+                return {"status": "error", "message": "User has no email"}
         except Exception as e:
             raise Exception from e
-    
     @app.get("/api/github/repos")
     async def search_own_repos(token: str, query: str, login: str):
         gh = GitHubService(token)
-        app.logger.info("Searching repos for %s", login)
         response = await gh.search_repos(query, login)
-        app.logger.info(response)
         return response
 
     @app.post("/api/github/workspace")
@@ -186,7 +200,9 @@ def bootstrap():
             # Create App container
             _app = await docker.create_container(body, volume)
             # Provision App Container [ERROR]
-            dns_app = await cloudflare.provision(body.login + "-" + body.repo, _app.host_port)
+            dns_app = await cloudflare.provision(
+                body.login + "-" + body.repo, _app.host_port
+            )
 
             # instantiate IDE container
             ide = ContainerCreate(
@@ -231,28 +247,8 @@ def bootstrap():
         except Exception as e:
             raise e
 
-    @app.get("/api/provision")
-    async def provision(name: str, port: int):
-        return await cloudflare.provision(name, port)
-    
-    
-    #@app.post("/api/email/verify")
-    async def verify_email(email: str):
-        try:
-            return await aws.verify_email(Email(email=email))
-        except Exception as e:
-            raise e
-        
-    #@app.post("/api/email/send")
-    async def send_email(email: Email):
-        try:
-            return await aws.send_email(email)
-        except Exception as e:
-            raise e
-        
-        
     @app.get("/api/db/{ref}")
-    async def get_database_key(ref:str):
+    async def get_database_key(ref: str):
         """Get the database key"""
         try:
             instance = await DatabaseKey.find_unique("user", ref)
@@ -265,13 +261,15 @@ def bootstrap():
             global_id = database["global_id"]
             db_ref = database["ref"]["@ref"]["id"]
             # Create a new key
-            key = await fql.query(q.create_key({"database": q.database(db_ref), "role": "admin"}))
+            key = await fql.query(
+                q.create_key({"database": q.database(db_ref), "role": "admin"})
+            )
             assert isinstance(key, dict)
             key_ref = key["ref"]["@ref"]["id"]
             secret = key["secret"]
             hashed_secret = key["hashed_secret"]
             role = key["role"]
-            
+
             response = await DatabaseKey(
                 user=ref,
                 database=db_ref,
@@ -279,7 +277,7 @@ def bootstrap():
                 key=key_ref,
                 secret=secret,
                 hashed_secret=hashed_secret,
-                role=role
+                role=role,
             ).save()
             assert isinstance(response, DatabaseKey)
             app.logger.info(response.json())
@@ -287,55 +285,13 @@ def bootstrap():
         except Exception as e:
             return {"message": str(e), "status": "error"}
 
-    @app.post("/api/db/ingest")
-    async def ingest_data(doc:DocumentModel):
-        try:
-            gpt = ChatGPT(namespace=doc.namespace)
-            return await gpt.insert(doc.text)
-        except Exception as e:
-            raise e
-
-    @app.post("/api/db/query")
-    async def query_data(doc:DocumentModel):
-        try:
-            gpt = ChatGPT(namespace=doc.namespace)
-            return await gpt.predict(doc.text)
-        except Exception as e:
-            raise e
-
     @app.get("/api/db/ingest/{namespace}")
-    async def ingest_data_(namespace:str):
+    async def ingest_data_(namespace: str):
         try:
-            tool = SiteMapTool(namespace=namespace,logger=app.logger)
+            tool = SiteMapTool(namespace=namespace, logger=app.logger)
             await tool.run(namespace)
             return {"status": "success"}
         except HTTPException as e:
             return {"status": "error", "message": dumps(e)}
-        
-    
-    @app.on_event("startup")
-    async def startup(_):
-        await FaunaModel.create_all()
 
-    @app.get("/")
-    async def index():
-        return Response(text=open("static/index.html").read(), content_type="text/html")
-
-    app.static()
-
-    cors = aiohttp_cors.setup(
-        app,
-        defaults={
-            "*": aiohttp_cors.ResourceOptions(
-                allow_credentials=True,
-                expose_headers="*",
-                allow_headers="*",
-                allow_methods="*",
-            )
-        },
-    )
-
-    for route in list(app.router.routes()):
-        cors.add(route)
-
-    return app
+    return setup(app)

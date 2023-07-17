@@ -1,10 +1,11 @@
 from typing import *
-
-from aioboto3 import Session
+from openai_function_call import openai_function, openai_schema
+from boto3 import Session
 from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
 from ..config import credentials
 
 session = Session(**credentials)
+
 
 class SentimentResponse(BaseModel):
     Sentiment: Literal["POSITIVE", "NEGATIVE", "NEUTRAL", "MIXED"] = Field(
@@ -29,7 +30,7 @@ class Comprehend(BaseModel):
 
     @classmethod
     def from_text(cls, text: str):
-        return cls(text=text)
+        return cls(Text=text)
 
     @property
     def client(self):

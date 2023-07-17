@@ -31,7 +31,6 @@ const routes = ref([
   },
 ]);
 
-
 const logout = () => {
   state.user = null;
   const router = useRouter();
@@ -45,17 +44,24 @@ const userName = computed(() => {
 const userPicture = computed(() => {
   return user?.picture;
 });
-
-
 </script>
 <template>
   <div class="sidebar">
     <div class="rf col center">
-      <img src="/favicon.svg" alt="aiofauna-logo" id="logo"
-        class="x3 rf text-center my-4 p-1 logo hover:animate-pulse hover:brightness-200" />
+      <img
+        src="/favicon.svg"
+        alt="aiofauna-logo"
+        id="logo"
+        class="x3 rf text-center my-4 p-1 logo hover:animate-pulse hover:brightness-200"
+      />
     </div>
     <ul class="nav-list">
-      <RouterLink :to="route.to" :key="route.to" v-for="route in routes" class="nav-item">
+      <RouterLink
+        :to="route.to"
+        :key="route.to"
+        v-for="route in routes"
+        class="nav-item"
+      >
         <span class="nav-item__icon mx-4">
           <Icon :icon="route.icon" />
         </span>

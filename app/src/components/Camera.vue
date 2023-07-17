@@ -44,7 +44,7 @@ watchEffect(() => {
     state.currentVideoName as string,
     {
       type: "video/webm",
-    }
+    },
   );
   watchEffect(() => {
     if (state.currentVideo) {

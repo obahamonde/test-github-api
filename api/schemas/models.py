@@ -1,8 +1,10 @@
-from aiofauna import *
-from .typedefs import *
-from geocoder import ip
-from uuid import uuid4
 from datetime import datetime
+from uuid import uuid4
+
+from aiofauna import *
+from geocoder import ip
+
+from .typedefs import *
 
 
 class User(Chainable):
@@ -20,7 +22,8 @@ class User(Chainable):
     picture: Optional[str] = Field(default=None)
     sub: str = Field(..., unique=True)
     updated_at: Optional[str] = Field(default=None)
- 
+
+
 class Lead(Chainable):
     """
     A lead is a potential customer
@@ -71,7 +74,7 @@ class DatabaseKey(FaunaModel):
 
     """
 
-    user:str = Field(..., unique=True)
+    user: str = Field(..., unique=True)
     database: str = Field(...)
     global_id: str = Field(...)
     key: str = Field(...)

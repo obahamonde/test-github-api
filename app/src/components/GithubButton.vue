@@ -23,8 +23,10 @@ onMounted(async () => {
 </script>
 <template>
   <div class="row center my-8" v-if="!state.githubToken">
-    <button class="row center gap-4 sh px-8 rounded-lg text-gray-500 hover:text-black scale cp"
-      @click.prevent="signinWithPopup()">
+    <button
+      class="row center gap-4 sh px-8 rounded-lg text-gray-500 hover:text-black scale cp"
+      @click.prevent="signinWithPopup()"
+    >
       <Icon class="rf x2 cp scale" icon="mdi-github" />
       <p class="row center w-full">Login with Github</p>
     </button>

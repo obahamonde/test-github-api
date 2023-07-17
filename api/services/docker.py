@@ -1,8 +1,12 @@
+from tabnanny import verbose
+from token import OP
 from typing import *
+from uuid import uuid4
 
-from aiofauna import ApiClient, BaseModel
-from aiofauna import FaunaModel as Model
-from aiofauna import Field
+from aiofauna import ApiClient, BaseModel, FaunaModel, Field
+from langchain.agents import initialize_agent
+from langchain.llms import OpenAI
+from langchain.tools import tool
 
 from ..utils import gen_port
 
@@ -28,7 +32,7 @@ class ContainerCreate(BaseModel):
     image: TemplatesAvailable = Field(..., description="Image to use")
 
 
-class CodeServer(Model):
+class CodeServer(FaunaModel):
     """
     - CodeServer
         - login:str
@@ -103,7 +107,7 @@ class CodeServer(Model):
         }
 
 
-class Container(Model):  # pylint:disable=all
+class Container(FaunaModel):  # pylint:disable=all
     """
     - Container
         - login:str
@@ -223,3 +227,61 @@ class DockerService(ApiClient):
         assert isinstance(instance.container_id, str)
         await self.start_container(instance.container_id)
         return instance
+
+
+@tool("exec",return_direct=True)
+async def create_exec_container(runtime: str, cmd: str):
+    """Runs arbitrary code sent by user on a remote container"""
+    client = DockerService()
+    image = f"{runtime}:latest"
+    payload = {
+        "Image": image,
+        "Cmd": cmd,
+        "AttachStdin": True,
+        "AttachStdout": True,
+        "AttachStderr": True,
+        "Tty": True,
+    }
+
+    response = await client.fetch(
+        "/containers/create",
+        method="POST",
+        headers={"Content-Type": "application/json"},
+        json=payload,
+    )
+
+    assert isinstance(response, dict)
+
+    container_id = response["Id"]
+
+    await client.text(f"/containers/{container_id}/start", method="POST")
+
+    response = await client.fetch(
+        f"/containers/{container_id}/exec",
+        method="POST",
+        headers={"Content-Type": "application/json"},
+        json={"Cmd": cmd},
+    )
+
+    assert isinstance(response, dict)
+
+    exec_id = response["Id"]
+
+    async for chunk in client.stream(
+        f"/exec/{exec_id}/start",
+        method="POST",
+        headers={"Content-Type": "application/json"},
+        json={"Detach": False, "Tty": True},
+    ):
+        yield chunk
+
+
+
+async def shell_agent():
+    """Runs code in a shell"""
+    tools= ["exec"]
+    llm = OpenAI(client=None, model="gpt-3.5-turbo-16k-0613", max_retries=10)
+    agent = initialize_agent(tools=tools, llm=llm, agent="zero-shot-react-description",verbose=True)
+    return await agent.arun()
+
+

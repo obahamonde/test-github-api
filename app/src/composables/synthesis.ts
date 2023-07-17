@@ -1,6 +1,6 @@
 export const useSynthesis = () => {
   const voice = ref<SpeechSynthesisVoice>(
-    undefined as unknown as SpeechSynthesisVoice
+    undefined as unknown as SpeechSynthesisVoice,
   );
   const text = ref("");
   const speech = useSpeechSynthesis(text, { voice });

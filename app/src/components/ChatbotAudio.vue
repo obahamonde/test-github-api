@@ -1,5 +1,4 @@
 <script setup lang="ts">
-
 import type { Query } from "~/types";
 
 const { state } = useStore();
@@ -13,7 +12,7 @@ const thisQuery = computed(() => ({
   namespace: namespace.value!,
 }));
 
-const objDownload = ref()
+const objDownload = ref();
 
 const srcObj = ref("");
 
@@ -28,8 +27,8 @@ const getAudio = async (query: Query) => {
   message.value = "";
   const blob = new Blob([unref(data)!], { type: "audio/mp3" });
   const url = URL.createObjectURL(blob);
-  srcObj.value = url
-  objDownload.value = blob
+  srcObj.value = url;
+  objDownload.value = blob;
   loading.value = false;
   const audio = new Audio(url);
   audio.play();
@@ -47,16 +46,33 @@ const downloadAudio = () => {
 <template>
   <div class="m-12">
     <div class="row center">
-      <div class="text-center text-lg font-bold col center  bg-light px-4 py-2 rounded-lg sh">
-        <h1 class="text-lg text-accent font-sans drop-shadow-color-primary drop-shadow-sm">
+      <div
+        class="text-center text-lg font-bold col center bg-light px-4 py-2 rounded-lg sh"
+      >
+        <h1
+          class="text-lg text-accent font-sans drop-shadow-color-primary drop-shadow-sm"
+        >
           Audio Chatbot
         </h1>
-        <input class="input text-center" type="text" placeholder="Enter your question" v-model="message"
-          @keyup.enter="getAudio(thisQuery)" />
-        <Icon class="text-4xl text-accent m-4 cp scale animate-spin" icon="mdi-loading" v-if="loading" />
-        <Icon class="text-4xl text-accent m-4 cp scale" icon="mdi-download" @click="downloadAudio" v-if="objDownload" />
+        <input
+          class="input text-center"
+          type="text"
+          placeholder="Enter your question"
+          v-model="message"
+          @keyup.enter="getAudio(thisQuery)"
+        />
+        <Icon
+          class="text-4xl text-accent m-4 cp scale animate-spin"
+          icon="mdi-loading"
+          v-if="loading"
+        />
+        <Icon
+          class="text-4xl text-accent m-4 cp scale"
+          icon="mdi-download"
+          @click="downloadAudio"
+          v-if="objDownload"
+        />
       </div>
-
     </div>
   </div>
 </template>

@@ -342,8 +342,6 @@ Then click on the `Visit your brand new App!` button and see it live:
 
 And that's how you build a serverless full-stack app with AioFauna framework!
 
-
-
 <br/>
 <br/>
 <br/>

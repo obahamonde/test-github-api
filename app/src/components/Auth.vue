@@ -27,12 +27,11 @@ const authorize = async () => {
 </script>
 <template>
   <Notifier />
-  <div v-if="state.user && isAuthenticated">
+  <div v-if="(state.user && isAuthenticated) || state.githubToken">
     <slot />
   </div>
   <div v-else>
     <div class="container">
-      <h1>Not Authenticated</h1>
       <button class="btn-get" @click.prevent="loginWithRedirect()">
         Login
       </button>

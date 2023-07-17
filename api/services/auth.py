@@ -1,6 +1,8 @@
 import json
 from os import environ
+
 from aiofauna import *
+
 from ..schemas import User
 
 

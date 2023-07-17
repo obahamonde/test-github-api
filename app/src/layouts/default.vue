@@ -12,9 +12,9 @@ onMounted(() => {
 <template>
   <Auth v-if="auth"></Auth>
   <Dark />
-      <SideBar />
-    <div class="container">
-    
-          <Chatbot/>
-      <RouterView /></div>
+  <SideBar />
+  <div class="container">
+    <Chatbot />
+    <RouterView />
+  </div>
 </template>

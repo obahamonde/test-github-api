@@ -6,36 +6,57 @@ const show = ref<boolean>(false);
 </script>
 
 <template>
-          <div class="bg-white z-50 rounded-lg text-black sh br fixed w-96 overflow-y-scroll h-1/2 mb-32 col center m-4"
-            v-if="show">
-                                        <WebSocket ref="wsRef" :url="'wss://www.aiofauna.com/api/chatbot/infer' + (state.user ? '?user=' + state.user.ref : '')">
-                        <template #default="{ messages, status }">
-                          <div v-if="messages && status == 'OPEN'" class="h-full p-4">
-                            <div class="chat__messages">
-                              <div v-for="(message, index) in messages" :key="index" :class="{
-                                'chat__message--left': index % 2 == 0,
-                                'chat__message--right': index % 2 !== 0,
-                              }" class="chat__message">
-                                <div class="chat__message__content">
-                                  <p class="chat__message__text">
-                                    {{ index % 2 == 0 ? "🤖" : "🙂" }}
-                                  </p>
-                                  <p class="chat__message__text">{{ message }}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div v-else>
-                            <Icon class="animate-spin text-primary x4" icon="loading" />
-                          </div>
-                        </template>
-                      </WebSocket>
-                      <input class="input bottom-0 fixed mb-20" v-model="text" @keyup.enter="
-                        wsRef!.send(text);
-                      text = '';
-                      " />
-                    </div>
-                    <Icon class="cp scale br x3 fixed m-8 text-primary" icon="logos:openai" @click="show = !show" />
+  <div
+    class="bg-white z-50 rounded-lg text-black sh br fixed w-96 overflow-y-scroll h-1/2 mb-32 col center m-4"
+    v-if="show"
+  >
+    <WebSocket
+      ref="wsRef"
+      :url="
+        'wss://www.aiofauna.com/api/chatbot/infer' +
+        (state.user ? '?user=' + state.user.ref : '')
+      "
+    >
+      <template #default="{ messages, status }">
+        <div v-if="messages && status == 'OPEN'" class="h-full p-4">
+          <div class="chat__messages">
+            <div
+              v-for="(message, index) in messages"
+              :key="index"
+              :class="{
+                'chat__message--left': message.author === 'bot',
+                'chat__message--right': message.author === 'user',
+              }"
+              class="chat__message"
+            >
+              <div class="chat__message__content">
+                <p class="chat__message__text">
+                  {{ message.author == 'bot' ? "🤖" : "🙂" }}
+                </p>
+                <p class="chat__message__text">{{ message.message }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else>
+          <Icon class="animate-spin text-primary x4" icon="loading" />
+        </div>
+      </template>
+    </WebSocket>
+    <input
+      class="input bottom-0 fixed mb-20"
+      v-model="text"
+      @keyup.enter="
+        wsRef!.send(text);
+        text = '';
+      "
+    />
+  </div>
+  <Icon
+    class="cp scale br x3 fixed m-8 text-primary"
+    icon="tabler:message-chatbot"
+    @click="show = !show"
+  />
 </template>
 
 <style>

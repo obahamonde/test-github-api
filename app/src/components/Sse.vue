@@ -13,7 +13,7 @@ const rxProps = reactive(props);
 
 const { messages, eventSource, status: thisStatus } = useSSE(rxProps);
 const status = computed<"OPEN" | "CLOSED" | "CONNECTING">(
-  () => thisStatus.value
+  () => thisStatus.value,
 );
 watch(eventSource, (newVal, oldVal) => {
   if (oldVal) {
@@ -27,7 +27,7 @@ watch(
     if (newVal === "CLOSED") {
       emit("closed");
     }
-  }
+  },
 );
 </script>
 <template>

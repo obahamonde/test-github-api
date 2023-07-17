@@ -13,19 +13,28 @@ class Page(NamedTuple):
     url: str
     content: str
 
+
 class SiteMapTool:
-    def __init__(self, namespace: str, logger: logging.Logger, ref:Optional[str]=None, websocket: Optional[WebSocketResponse]=None, max_connections: int = 1000):
+    def __init__(
+        self,
+        namespace: str,
+        logger: logging.Logger,
+        ref: Optional[str] = None,
+        websocket: Optional[WebSocketResponse] = None,
+        max_connections: int = 1000,
+    ):
         self.urls: List[str] = []
         self.pages: int = 0
         self.semaphore = asyncio.Semaphore(max_connections)
         self.logger = logger
         self.websocket = websocket
         self.gpt = ChatGPT(namespace=namespace)
-        self.session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=max_connections))
+        self.session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(limit=max_connections)
+        )
         if ref:
             self.ref = ref
             self.aws = AmazonWebServices()
-            
 
     async def fetch_loc(self, url: str):
         async with self.semaphore:
@@ -44,7 +53,7 @@ class SiteMapTool:
                 await asyncio.gather(
                     *[self.fetch_loc(sitemap.find("loc").text) for sitemap in sitemaps]
                 )
-                self.logger.info("Found %s nested sitemaps", len(sitemaps)) 
+                self.logger.info("Found %s nested sitemaps", len(sitemaps))
             else:
                 self.urls.extend([loc.text for loc in soup.find_all("loc")])
                 if len(self.urls) > 0:
@@ -74,9 +83,11 @@ class SiteMapTool:
             finally:
                 self.pages += 1
                 self.logger.info(f"Added {page} to pages")
-                progress = (self.pages / len(self.urls))
+                progress = self.pages / len(self.urls)
                 self.logger.info("%s%%", progress * 100)
-                await self.gpt.insert(text="\n".join([page.title, page.url, page.content]))
+                await self.gpt.insert(
+                    text="\n".join([page.title, page.url, page.content])
+                )
                 if self.websocket:
                     await self.websocket.send_json({"progress": progress * 100})
 
@@ -101,8 +112,11 @@ class SiteMapTool:
                 while not verified:
                     verified = user.email in await self.aws.list_verified_emails()
                     await asyncio.sleep(3)
-            await self.aws.send_email(Email(to=user.email, subject=f"Finished downloading {u}", html=html))
+            await self.aws.send_email(
+                Email(to=user.email, subject=f"Finished downloading {u}", html=html)
+            )
             self.logger.info("Sent email to %s", user.email)
         await self.cleanup()
+
     async def cleanup(self):
         await self.session.close()

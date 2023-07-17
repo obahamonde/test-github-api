@@ -27,6 +27,6 @@ createApp(App)
       authorizationParams: {
         redirect_uri: window.location.origin,
       },
-    })
+    }),
   )
   .mount("#app");

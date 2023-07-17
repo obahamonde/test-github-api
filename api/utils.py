@@ -81,4 +81,3 @@ def is_async_callable(obj: typing.Any) -> bool:
     return asyncio.iscoroutinefunction(obj) or (
         callable(obj) and asyncio.iscoroutinefunction(obj.__call__)
     )
-

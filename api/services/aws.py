@@ -7,6 +7,7 @@ from pydantic import Field as Data  # pylint: disable=no-name-in-module
 
 from ..config import credentials, env
 from ..schemas import *
+
 session = Session(**credentials)
 
 
@@ -26,6 +27,7 @@ class UploadRequest(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
 
 EMAIL_TEMPLATE = """
 <!DOCTYPE html>
@@ -65,6 +67,7 @@ EMAIL_TEMPLATE = """
 </html>
 """
 
+
 class Email(Chainable):
     """
     Email
@@ -72,10 +75,11 @@ class Email(Chainable):
         - subject:str
         - html:str
     """
-    
+
     to: str = Data(...)
     subject: str = Data(...)
     html: str = Data(...)
+
 
 class AmazonWebServices:
     """
@@ -108,22 +112,21 @@ class AmazonWebServices:
             assert isinstance(response, Upload)
             return response
 
-
     async def verify_email(self, request: Email):
         """
         Verify Email Endpoint
         """
-        async with session.client("ses", region_name="us-east-1") as ses:   
-            await ses.verify_email_identity(
-                EmailAddress=request.to
-            )
-            return {"message": "Verification link sent successfully, please check your inbox."}
-        
+        async with session.client("ses", region_name="us-east-1") as ses:
+            await ses.verify_email_identity(EmailAddress=request.to)
+            return {
+                "message": "Verification link sent successfully, please check your inbox."
+            }
+
     async def send_email(self, request: Email):
         """
         Send Email Endpoint
         """
-        async with session.client("ses", region_name="us-east-1") as ses:   
+        async with session.client("ses", region_name="us-east-1") as ses:
             await ses.send_email(
                 Source="oscar.bahamonde.dev@gmail.com",
                 Destination={
@@ -143,18 +146,15 @@ class AmazonWebServices:
                 },
             )
             return {"message": "Email sent successfully, please check your inbox."}
-        
+
     async def list_verified_emails(self):
         """
         List Verified Emails Endpoint
         """
-        async with session.client("ses") as ses:   
-            response = await ses.list_identities(
-                IdentityType="EmailAddress"
-            )
+        async with session.client("ses") as ses:
+            response = await ses.list_identities(IdentityType="EmailAddress")
             return response["Identities"]
-        
-        
+
     async def suscribe(self, email: str):
         """
         Suscribe Endpoint
@@ -164,9 +164,7 @@ class AmazonWebServices:
         if is_verified:
             await self.send_email(
                 Email(
-                    to=email,
-                    subject="Welcome to our Newsletter!",
-                    html=EMAIL_TEMPLATE
+                    to=email, subject="Welcome to our Newsletter!", html=EMAIL_TEMPLATE
                 )
             )
         else:
@@ -179,22 +177,18 @@ class AmazonWebServices:
                 verified_emails = await self.list_verified_emails()
                 is_verified = email in verified_emails
                 await asyncio.sleep(1)
-                
+
             await self.send_email(
                 Email(
-                    to=email,
-                    subject="Welcome to our Newsletter!",
-                    html=EMAIL_TEMPLATE
+                    to=email, subject="Welcome to our Newsletter!", html=EMAIL_TEMPLATE
                 )
             )
         return {"message": "Email suscribed successfully, please check your inbox."}
-    
+
     async def unsubscribe(self, email: str):
         """
         Unsubscribe Endpoint
         """
-        async with session.client("ses", region_name="us-east-1") as ses:   
-            await ses.delete_identity(
-                Identity=email
-            )
+        async with session.client("ses", region_name="us-east-1") as ses:
+            await ses.delete_identity(Identity=email)
             return {"message": "Email unsubscribed successfully."}

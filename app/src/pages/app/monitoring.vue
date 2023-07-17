@@ -6,7 +6,11 @@ const showModal = ref(false);
 </script>
 <template>
   <div class="col center p-12 gap-4">
-    <img :src="state.user!.picture" class="rf sh cp scale" @click="showModal = !showModal" />
+    <img
+      :src="state.user!.picture"
+      class="rf sh cp scale"
+      @click="showModal = !showModal"
+    />
     <h1 class="font-sans">{{ state.user!.name }}</h1>
     <h2 class="font-sans">{{ state.user!.email }}</h2>
     <button class="btn-del" @click="logout()">Logout</button>

@@ -10,14 +10,29 @@ const route = useRoute();
     <p class="text-subtitle m-8">
       Enter the URL of your website to create a new chatbot.
     </p>
-    <input class="input" v-model="url" placeholder="Enter your URL" @keyup.enter="urlTriggered = true" />
+    <input
+      class="input"
+      v-model="url"
+      placeholder="Enter your URL"
+      @keyup.enter="urlTriggered = true"
+    />
 
     <div class="row gap-8 center" v-if="urlTriggered && state.user">
-      <WebSocket :url="'wss://www.aiofauna.com/api/chatbot/ingest?namespace=' + url + '&ref=' + state.user!.ref">
+      <WebSocket
+        :url="
+          'wss://www.aiofauna.com/api/chatbot/ingest?namespace=' +
+          url +
+          '&ref=' +
+          state.user!.ref
+        "
+      >
         <template #default="{ data }">
           <div v-if="data">
-            <ProgressBar :completed="Number(Number(data).toFixed(2))" bgcolor="#008080" />
-          </div>  
+            <ProgressBar
+              :completed="Number(Number(data).toFixed(2))"
+              bgcolor="#008080"
+            />
+          </div>
         </template>
       </WebSocket>
     </div>

@@ -1,3 +1,4 @@
-from .sitemap import *
-from .polly import *
 from .comprehend import *
+from .polly import *
+from .search import *
+from .sitemap import *
